@@ -1,17 +1,22 @@
-# Secrets
-env
+# 虛擬環境
+.venv/
+venv/
+
+# 機密資訊（API Key）
 .env
-.env.*
-!env.example
-!.env.example
+env
+.streamlit/secrets.toml
+
+# 資料檔（執行時產生）
+data/data.db
+data/raw_forecast.json
 
 # Python
 __pycache__/
 *.pyc
-.venv/
-venv/
+.pytest_cache/
 
-# OS / editor
+# OS / 編輯器
 .DS_Store
 Thumbs.db
 .vscode/
