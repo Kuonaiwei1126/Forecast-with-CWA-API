@@ -101,13 +101,22 @@ pytest -q                # 執行測試
 寫入 154 筆（UPSERT）；資料表筆數 154 -> 154（新增 0 筆）
 ```
 
-## 截圖
+## 展示畫面
 
-> 請將截圖放在 `docs/` 目錄並更新下方路徑。
+執行 `streamlit run app.py` 後，瀏覽器開啟 http://localhost:8501 即可看到以下畫面：
 
-| 折線圖分頁 | 地圖分頁 |
-|-----------|---------|
-| ![chart](docs/screenshot_chart.png) | ![map](docs/screenshot_map.png) |
+![Taiwan Weather Forecast — 折線圖分頁](docs/screenshot_chart.png)
+
+畫面說明（以臺中市為例）：
+
+| 區域 | 內容 |
+|------|------|
+| 左側欄 **Select Region** | 下拉選單切換 22 個縣市，圖表與表格會立即更新 |
+| 左側欄 **重新抓取資料** | 重新呼叫 CWA API 並更新 SQLite，下方顯示資料更新時間 |
+| 上方指標列 | 地區名稱、一週最高溫（33 °C）、一週最低溫（22 °C） |
+| **折線圖** 分頁 | 紅線 MaxT、藍線 MinT，x 軸為日期（2026-10-18 ~ 10-24），每點標示溫度 |
+| 資料表格 | Date / MinT (°C) / MaxT (°C) 逐日列表 |
+| **地圖** 分頁 | 選擇日期後，Folium 台灣地圖以 22 個圓點顯示各縣市平均氣溫，顏色分級：藍 <20、綠 20–25、黃 25–30、紅 >30 °C，點擊圓點可看 Min / Max |
 
 ## AI Agent 開發流程
 
