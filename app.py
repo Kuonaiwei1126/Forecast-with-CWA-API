@@ -1,14 +1,16 @@
-"""F5：Streamlit 互動式網頁 — Taiwan Weather Forecast。
+"""F5 / F6：Streamlit 互動式網頁 — Taiwan Weather Forecast（折線圖 + Folium 台灣地圖）。
 
 執行：streamlit run app.py
 """
 from __future__ import annotations
 
+import folium
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from streamlit_folium import st_folium
 
-from src.config import DB_PATH
+from src.config import DB_PATH, MAP_CENTER, MAP_ZOOM, REGION_COORDS, TEMP_COLOR_BINS
 from src.db import get_conn, init_db, query_all, query_regions
 from src.pipeline import run_pipeline
 
@@ -93,6 +95,66 @@ def build_line_chart(df: pd.DataFrame, region: str) -> go.Figure:
 
 
 # ---------------------------------------------------------------------------
+# 地圖
+# ---------------------------------------------------------------------------
+def temp_to_color(avg_temp: float) -> str:
+    """依平均氣溫回傳分級顏色：<20 藍、20–25 綠、25–30 黃、>30 紅。"""
+    for upper, color, _ in TEMP_COLOR_BINS:
+        if avg_temp < upper:
+            return color
+    return TEMP_COLOR_BINS[-1][1]
+
+
+def build_map(day_df: pd.DataFrame, date: str) -> folium.Map:
+    """建立 Folium 地圖：每個地區一個 CircleMarker，顏色依 (mint+maxt)/2 分級。"""
+    fmap = folium.Map(location=list(MAP_CENTER), zoom_start=MAP_ZOOM, tiles="OpenStreetMap")
+
+    missing: list[str] = []
+    for row in day_df.itertuples(index=False):
+        coords = REGION_COORDS.get(row.regionName)
+        if coords is None:
+            missing.append(row.regionName)
+            continue
+        if pd.isna(row.mint) or pd.isna(row.maxt):
+            continue
+        avg = (row.mint + row.maxt) / 2
+        color = temp_to_color(avg)
+        popup_html = (
+            f"<b>{row.regionName}</b><br>{date}<br>"
+            f"Min: {row.mint:.0f} °C<br>Max: {row.maxt:.0f} °C<br>Avg: {avg:.1f} °C"
+        )
+        folium.CircleMarker(
+            location=list(coords),
+            radius=11,
+            color=color,
+            fill=True,
+            fill_color=color,
+            fill_opacity=0.85,
+            weight=2,
+            popup=folium.Popup(popup_html, max_width=200),
+            tooltip=f"{row.regionName}  {row.mint:.0f}–{row.maxt:.0f} °C",
+        ).add_to(fmap)
+
+    if missing:
+        st.caption(f"以下地區無座標資料，未顯示於地圖：{', '.join(missing)}")
+
+    # 圖例（固定在右下角的 HTML）
+    legend_items = "".join(
+        f'<div><span style="display:inline-block;width:12px;height:12px;'
+        f'border-radius:50%;background:{color};margin-right:6px;"></span>{label}</div>'
+        for _, color, label in TEMP_COLOR_BINS
+    )
+    legend_html = (
+        '<div style="position:fixed;bottom:30px;right:30px;z-index:9999;'
+        'background:white;padding:10px 12px;border:1px solid #999;border-radius:6px;'
+        'font-size:13px;line-height:1.6;box-shadow:0 1px 4px rgba(0,0,0,.3);">'
+        '<b>平均氣溫 (MinT+MaxT)/2</b>' + legend_items + "</div>"
+    )
+    fmap.get_root().html.add_child(folium.Element(legend_html))
+    return fmap
+
+
+# ---------------------------------------------------------------------------
 # 主程式
 # ---------------------------------------------------------------------------
 def main() -> None:
@@ -131,14 +193,31 @@ def main() -> None:
     c2.metric("一週最高溫", f"{region_df['maxt'].max():.0f} °C")
     c3.metric("一週最低溫", f"{region_df['mint'].min():.0f} °C")
 
-    # 折線圖
-    st.plotly_chart(build_line_chart(region_df, region), width="stretch")
+    tab_chart, tab_map = st.tabs(["折線圖", "地圖"])
 
-    # 表格
-    table = region_df.rename(
-        columns={"dataDate": "Date", "mint": "MinT (°C)", "maxt": "MaxT (°C)"}
-    )[["Date", "MinT (°C)", "MaxT (°C)"]]
-    st.dataframe(table, width="stretch", hide_index=True)
+    with tab_chart:
+        # 折線圖
+        st.plotly_chart(build_line_chart(region_df, region), width="stretch")
+
+        # 表格
+        table = region_df.rename(
+            columns={"dataDate": "Date", "mint": "MinT (°C)", "maxt": "MaxT (°C)"}
+        )[["Date", "MinT (°C)", "MaxT (°C)"]]
+        st.dataframe(table, width="stretch", hide_index=True)
+
+    with tab_map:
+        dates = sorted(all_df["dataDate"].unique())
+        date = st.selectbox("Select Date", dates, index=0)
+        day_df = all_df[all_df["dataDate"] == date]
+
+        m1, m2, m3 = st.columns(3)
+        hottest = day_df.loc[day_df["maxt"].idxmax()]
+        coldest = day_df.loc[day_df["mint"].idxmin()]
+        m1.metric("日期", date)
+        m2.metric("最熱地區", f"{hottest['regionName']} {hottest['maxt']:.0f} °C")
+        m3.metric("最冷地區", f"{coldest['regionName']} {coldest['mint']:.0f} °C")
+
+        st_folium(build_map(day_df, date), width=None, height=600, returned_objects=[])
 
 
 if __name__ == "__main__":
