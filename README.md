@@ -1,7 +1,7 @@
 # Taiwan Weather Forecast — Forecast with CWA API
 
 > 課程：人工智慧與資訊安全（NCHU）｜Homework 1
-> 作者：郭乃瑋 Leo Kuo｜開發環境：VS Code + Claude Code（AI Agent）
+> 作者：郭乃瑋 Leo Kuo｜開發環境：VS Code + Claude Code（AI Agent)
 
 以自然語言指揮 AI Agent 完成的全流程專案：從中央氣象署（CWA）開放資料平台取得**一週各縣市氣溫預報**，
 解析後存入 **SQLite**，再以 **Streamlit** 建立互動式網頁（氣溫折線圖 + Folium 台灣地圖）。
